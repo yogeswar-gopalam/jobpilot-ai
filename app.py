@@ -275,6 +275,64 @@ def chat():
     if len(message) > 6000: return jsonify({"error":"message_too_long"}), 413
     return jsonify(chatbot_reply(message, data.get("context", {})))
 
+@app.get("/api/agent/search")
+def agent_search():
+    query = all_text(request.args.get("q"))
+    limit = max(1, min(20, int(request.args.get("limit", "10") or "10")))
+
+    params = {"limit": limit, "page": 1, "sort": "recent"}
+    if query:
+        params["q"] = query
+
+    url = "https://himalayas.app/jobs/api/search?" + urllib.parse.urlencode(params)
+    data, status = api_json(url)
+
+    if status >= 400:
+        return jsonify({
+            "error": "job_source_unavailable",
+            "message": "Could not fetch jobs. Please try again later."
+        }), 502
+
+    profile = get_profile()
+    jobs = []
+
+    for job in normalize_jobs(data):
+        if not isinstance(job, dict):
+            continue
+
+        job_id = job_field(job, "guid", "id", "job_id", "slug", "url")
+        title = job_field(job, "title", "jobTitle", "name") or "Untitled role"
+        company = job_field(job, "companyName", "company", "company_name", "employer") or "Company not listed"
+        location = job_field(job, "location", "locationRestriction", "country") or "Remote"
+        description = job_field(job, "description", "excerpt", "summary", "jobDescription")
+
+        link = job_field(job, "applicationLink", "url", "jobUrl")
+        if link.startswith("/"):
+            link = "https://himalayas.app" + link
+        if not link.startswith("https://") and not link.startswith("http://"):
+            link = ""
+
+        jobs.append({
+            "id": job_id,
+            "title": title,
+            "company": company,
+            "location": location,
+            "description": description,
+            "url": link
+        })
+
+    ranked_jobs = rank_jobs(jobs, profile)
+
+    return jsonify({
+        "agent": "JobPilot AI",
+        "task": "job_search_and_matching",
+        "query": query,
+        "count": len(ranked_jobs),
+        "jobs": ranked_jobs,
+        "source": "Himalayas public jobs API",
+        "note": "Match scores are keyword-based estimates, not hiring probabilities."
+    })
+
 @app.errorhandler(413)
 def too_large(_error):
     return jsonify({"error":"request_too_large"}), 413
