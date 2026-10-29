@@ -1,3 +1,4 @@
+from agent import rank_jobs
 import os, sqlite3, json, urllib.parse, urllib.request, urllib.error
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, render_template, g
