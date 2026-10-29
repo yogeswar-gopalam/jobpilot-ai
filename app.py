@@ -1,4 +1,4 @@
-from agent import rank_jobs
+from agent import rank_fresher_jobs
 import os, sqlite3, json, urllib.parse, urllib.request, urllib.error
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, render_template, g
@@ -321,7 +321,7 @@ def agent_search():
             "url": link
         })
 
-    ranked_jobs = rank_jobs(jobs, profile)
+    ranked_jobs = rank_fresher_jobs(jobs, profile)
 
     return jsonify({
         "agent": "JobPilot AI",
