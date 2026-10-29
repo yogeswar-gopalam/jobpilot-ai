@@ -94,3 +94,34 @@ def rank_jobs(jobs: list[dict], profile: dict) -> list[dict]:
         key=lambda item: item["match_score"],
         reverse=True,
     )
+
+import re
+
+def is_fresher_friendly(job: dict) -> bool:
+    """Conservative title-based filter for entry-level opportunities."""
+    title = str(job.get("title", "")).lower().strip()
+
+    senior_patterns = [
+        r"\bsenior\b",
+        r"\bsr\.?\b",
+        r"\blead\b",
+        r"\bprincipal\b",
+        r"\bstaff\b",
+        r"\bmanager\b",
+        r"\bdirector\b",
+        r"\barchitect\b",
+        r"\bhead of\b",
+        r"\b[3-9]\+?\s*years?\b",
+        r"\b1[0-9]\+?\s*years?\b",
+    ]
+
+    return not any(re.search(pattern, title) for pattern in senior_patterns)
+
+
+def rank_fresher_jobs(jobs: list[dict], profile: dict) -> list[dict]:
+    """Filter clearly senior job titles and rank remaining jobs."""
+    fresher_jobs = [
+        job for job in jobs
+        if is_fresher_friendly(job)
+    ]
+    return rank_jobs(fresher_jobs, profile)
