@@ -97,31 +97,69 @@ def rank_jobs(jobs: list[dict], profile: dict) -> list[dict]:
 
 import re
 
-def is_fresher_friendly(job: dict) -> bool:
-    """Conservative title-based filter for entry-level opportunities."""
-    title = str(job.get("title", "")).lower().strip()
+
+import re
+
+def fresher_eligibility(job: dict) -> dict:
+    title = str(job.get("title", ""))
+    description = str(job.get("description", ""))
+    text = f"{title} {description}".lower()
 
     senior_patterns = [
-        r"\bsenior\b",
-        r"\bsr\.?\b",
-        r"\blead\b",
-        r"\bprincipal\b",
-        r"\bstaff\b",
-        r"\bmanager\b",
-        r"\bdirector\b",
-        r"\barchitect\b",
-        r"\bhead of\b",
-        r"\b[3-9]\+?\s*years?\b",
-        r"\b1[0-9]\+?\s*years?\b",
+        r"\bsenior\b", r"\bsr\.?\b", r"\blead\b",
+        r"\bprincipal\b", r"\bstaff\b", r"\bmanager\b",
+        r"\bdirector\b", r"\barchitect\b"
     ]
 
-    return not any(re.search(pattern, title) for pattern in senior_patterns)
+    if any(re.search(pattern, title.lower()) for pattern in senior_patterns):
+        return {
+            "eligibility": "not_fresher_friendly",
+            "experience_note": "Senior-level title"
+        }
 
+    explicit_fresher = [
+        "fresh graduate", "recent graduate", "entry-level",
+        "entry level", "new graduate", "no experience required",
+        "0-1 year", "0–1 year", "0 to 1 year",
+        "early career", "junior"
+    ]
+
+    if any(term in text for term in explicit_fresher):
+        return {
+            "eligibility": "likely_fresher_friendly",
+            "experience_note": "Listing contains an entry-level signal; verify full requirements"
+        }
+
+    years = re.findall(r"\b(\d+)\+?\s+years?\s+(?:of\s+)?experience\b", text)
+    if years and max(map(int, years)) > 1:
+        return {
+            "eligibility": "requires_review",
+            "experience_note": "Listing mentions experience beyond one year"
+        }
+
+    return {
+        "eligibility": "experience_not_verified",
+        "experience_note": "No clear fresher eligibility found in available listing text"
+    }
 
 def rank_fresher_jobs(jobs: list[dict], profile: dict) -> list[dict]:
-    """Filter clearly senior job titles and rank remaining jobs."""
+    """Rank jobs and attach transparent fresher eligibility signals."""
     fresher_jobs = [
         job for job in jobs
         if is_fresher_friendly(job)
     ]
-    return rank_jobs(fresher_jobs, profile)
+
+    ranked = rank_jobs(fresher_jobs, profile)
+
+    for result in ranked:
+        original = next(
+            (
+                job for job in fresher_jobs
+                if str(job.get("id", "")) == result["job_id"]
+            ),
+            {}
+        )
+        result.update(fresher_eligibility(original))
+
+    return ranked
+
