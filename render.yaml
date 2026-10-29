@@ -5,15 +5,11 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 90
-    healthCheckPath: /health
+    healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
-      - key: JOBVETTA_API_KEY
-        sync: false
-      - key: AI_API_KEY
-        sync: false
       - key: AI_BASE_URL
-        value: https://api.openai.com/v1
+        value: http://localhost:11434/v1
       - key: AI_MODEL
-        value: gpt-4o-mini
+        value: llama3.2:3b
